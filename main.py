@@ -3,12 +3,17 @@ import sys
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+import argparse
 
-
+def verbose_print(response) -> None:
+    print(f"User prompt: {response.text}")
+    print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
+    print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
 
 def main():
     print("Hello from ai-agent!")
 
+    """
     match len(sys.argv):
         case 2:
             if not isinstance(sys.argv[1], str):
@@ -17,6 +22,20 @@ def main():
             raise Exception("No prompt given")
         case _:
             raise Exception("Too mangy arguments given")
+    """
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "user_prompt",
+        type=str,
+        help="The input string"
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        help="Be verbose",
+        action="store_true"
+    )
+    args = parser.parse_args()
 
     load_dotenv()
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -25,18 +44,16 @@ def main():
 
     models = ["gemini-2.0-flash-001", "gemini-2.5-flash"]
 
-    user_prompt = sys.argv[1] #"Why is Boot.dev such a great place to learn backend development? Use one paragraph maximum."
     messages = [
-        types.Content(role="user", parts=[types.Part(text=user_prompt)]),
+        types.Content(role="user", parts=[types.Part(text=args.user_prompt)]),
     ]
 
     response = client.models.generate_content(
         model=models[0], 
         contents=messages
     )
-    print(response.text)
-    print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-    print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+    if args.verbose:
+        verbose_print(response)
 
 
 if __name__ == "__main__":
