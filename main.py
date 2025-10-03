@@ -4,13 +4,14 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 import argparse
+import config
 
-def verbose_print(response) -> None:
-    print(f"User prompt: {response.text}")
+def verbose_print(user_prompt, response) -> None:
+    print(f"User prompt: {user_prompt}")
     print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
     print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
 
-def main():
+def main() -> None:
     print("Hello from ai-agent!")
 
     """
@@ -50,10 +51,12 @@ def main():
 
     response = client.models.generate_content(
         model=models[0], 
-        contents=messages
+        contents=messages,
+        config=types.GenerateContentConfig(system_instruction=config.SYSTEM_PROMPT)
     )
+    print(response.text)
     if args.verbose:
-        verbose_print(response)
+        verbose_print(args.user_prompt, response)
 
 
 if __name__ == "__main__":
