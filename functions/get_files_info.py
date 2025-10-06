@@ -50,9 +50,3 @@ def get_files_info(working_directory : str, directory : str =".") -> str:
     except Exception as e:
         dir_report += f"    Error: {e}"
         return dir_report
-
-if __name__ == "__main__":
-    print(get_files_info("calculator", "."))
-    print(get_files_info("calculator", "pkg"))
-    print(get_files_info("calculator", "/bin"))
-    print(get_files_info("calculator", "../"))

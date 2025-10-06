@@ -5,10 +5,65 @@ from google import genai
 from google.genai import types
 import argparse
 import config
-from functions.get_files_info import schema_get_files_info
-from functions.get_file_content import schema_get_file_content
-from functions.run_python_file import schema_run_python_file
-from functions.write_file import schema_write_file
+from functions.get_files_info import schema_get_files_info, get_files_info
+from functions.get_file_content import schema_get_file_content, get_file_content
+from functions.run_python_file import schema_run_python_file, run_python_file
+from functions.write_file import schema_write_file, write_file
+
+def call_function(function_call_part : types.FunctionCall, verbose : bool = False) -> types.Content:
+    if not verbose:
+        print(f" - Calling function: {function_call_part.name}")
+    else:
+        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+
+    function_result = ""
+    
+    match function_call_part.name:
+        case "get_files_info":
+            function_result = get_files_info(
+                    working_directory=config.WORKING_DIRECTORY, 
+                    **function_call_part.args
+                    )
+
+        case "get_file_content":
+            function_result = get_file_content(
+                    working_directory=config.WORKING_DIRECTORY, 
+                    **function_call_part.args
+                    )
+
+        case "run_python_file":
+            function_result = run_python_file(
+                    working_directory=config.WORKING_DIRECTORY, 
+                    **function_call_part.args
+                    )
+
+        case "write_file":
+            function_result = write_file(
+                    working_directory=config.WORKING_DIRECTORY, 
+                    **function_call_part.args
+                    )
+
+        case _:
+            return types.Content(
+                role="tool",
+                parts=[
+                    types.Part.from_function_response(
+                        name=function_call_part.name,
+                        response={"error": f"Unknown function: {function_call_part.name}"},
+                    )
+                ],
+            )
+
+    return types.Content(
+            role="tool",
+            parts=[
+                types.Part.from_function_response(
+                    name=function_call_part.name,
+                    response={"result": function_result},
+                )
+            ],
+        )
+    
 
 def verbose_print(user_prompt : str, response : types.GenerateContentResponse) -> None:
     print(f"User prompt: {user_prompt}")
@@ -66,9 +121,20 @@ def main() -> None:
 
     if len(functions_called) != 0:
         for function_call_part in functions_called: 
-            print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+            function_call_result = call_function(function_call_part, verbose = args.verbose)
+
+            try:
+                test = function_call_result.parts[0].function_response.response
+            except (AttributeError, IndexError, TypeError) as e:
+                raise FatalContentError(
+                    f"Invalid Content structure — expected content.parts[0].function_response.response, got error: {e}"
+                )
+
+            if args.verbose:
+                print(f"-> {function_call_result.parts[0].function_response.response}")
 
     if args.verbose:
+        print()
         verbose_print(args.user_prompt, response)
 
 
