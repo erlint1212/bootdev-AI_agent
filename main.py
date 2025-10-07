@@ -105,37 +105,68 @@ def main() -> None:
             schema_write_file,
         ]
     )
-
-    response = client.models.generate_content(
-        model=models[0], 
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], 
-            system_instruction=config.SYSTEM_PROMPT
+    
+    for i in range(1, 21):
+        try:
+            response = client.models.generate_content(
+                model=models[1], 
+                contents=messages,
+                config=types.GenerateContentConfig(
+                    tools=[available_functions], 
+                    system_instruction=config.SYSTEM_PROMPT
+                    )
             )
-    )
 
-    functions_called = response.function_calls
+            for candidate in response.candidates:
+                messages.append(candidate.content)
 
-    print(response.text)
+            functions_called = response.function_calls
+            
 
-    if len(functions_called) != 0:
-        for function_call_part in functions_called: 
-            function_call_result = call_function(function_call_part, verbose = args.verbose)
+            if functions_called:
+                for function_call_part in functions_called: 
+                    function_call_result = call_function(function_call_part, verbose = args.verbose)
 
-            try:
-                test = function_call_result.parts[0].function_response.response
-            except (AttributeError, IndexError, TypeError) as e:
-                raise FatalContentError(
-                    f"Invalid Content structure — expected content.parts[0].function_response.response, got error: {e}"
-                )
+                    try:
+                        result_text = function_call_result.parts[0].function_response.response["result"]
+                    except (AttributeError, IndexError, TypeError) as e:
+                        raise FatalContentError(
+                            f"Invalid function response: {e}"
+                        )
+
+                    messages.append(
+                            types.Content(
+                                role="user", 
+                                parts=[
+                                    types.Part.from_function_response(
+                                        name=function_call_part.name,
+                                        response={"result" : result_text}
+                                        )
+                                    ]
+                                )
+                            )
+
+                    if args.verbose:
+                        print(f"-> {function_call_result.parts[0].function_response.response}")
+
+
+            text_parts = [
+                part.text for c in response.candidates 
+                for part in c.content.parts 
+                if hasattr(part, "text") and part.text
+            ]
+
+            if text_parts:
+                print("Final response:")
+                print("\n".join(text_parts))
+                break
 
             if args.verbose:
-                print(f"-> {function_call_result.parts[0].function_response.response}")
+                verbose_print(args.user_prompt, response)
 
-    if args.verbose:
-        print()
-        verbose_print(args.user_prompt, response)
+        except Exception as e:
+            raise Exception(f"Error during iteration {i}: {e}")
+            break
 
 
 if __name__ == "__main__":
