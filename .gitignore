@@ -1,4 +1,6 @@
 # Python-generated files
+dir_tree.txt
+print_directory_tree.py
 *config.py
 __pycache__/
 *.py[oc]
